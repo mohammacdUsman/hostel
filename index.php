@@ -1,151 +1,105 @@
+<?php 
+include 'db.php'; 
+include 'header_sidebar.php'; 
+?>
 
-<?php include 'config.php'; ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HostelHub Faisalabad</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+<style>
+    /* Heart Button Styling */
+    .wishlist-btn {
+        position: absolute; top: 15px; right: 15px;
+        background: white; width: 40px; height: 40px;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15); cursor: pointer;
+        transition: transform 0.2s ease; z-index: 10;
+    }
+    .wishlist-btn:hover { transform: scale(1.1); }
+    .wishlist-btn i { font-size: 1.2rem; color: #ccc; transition: color 0.3s; }
+    .wishlist-btn.active i { color: #dc3545; /* Red */ }
+
+    /* Compare Checkbox Style */
+    .compare-checkbox {
+        position: absolute; top: 15px; left: 15px; z-index: 10;
+        width: 20px; height: 20px; cursor: pointer; accent-color: var(--gold);
+    }
+
+    /* Floating Compare Button */
+    #compareBtn {
+        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+        z-index: 9999; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+</style>
+
+<!-- HERO SECTION -->
+<div style="background: url('https://images.unsplash.com/photo-1555854877-bab0e564b8d5?q=80&w=1920') center/cover; height: 70vh; position: relative; margin-top: -80px; display: flex; align-items: center; justify-content: center;">
+    <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5);"></div>
     
-    <!-- PRELOADER START -->
-    <div id="preloader">
-        <div class="spinner"></div>
+    <div class="container text-center position-relative text-white">
+        <h1 style="font-family: 'Cinzel'; font-size: 3.5rem; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+            Hostel<span style="color: var(--gold);">Hub</span>
+        </h1>
+        <p class="lead mb-4 opacity-75">Experience Luxury & Secure Living</p>
+
+        <!-- Search Box -->
+        <form action="index.php" method="GET" class="d-inline-flex bg-white p-2 rounded-pill shadow-lg" style="max-width: 600px; width: 100%;">
+            <input type="text" name="area" class="form-control border-0 rounded-pill ps-4" placeholder="Search by Area (e.g. D-Ground)...">
+            <button class="btn btn-gold rounded-pill px-4 ms-2">Search</button>
+        </form>
     </div>
-    <!-- PRELOADER END -->
+</div>
 
-    <?php include 'navbar.php'; ?>
-    
-    <!-- HERO SECTION START -->
-    <div class="hero-section d-flex align-items-center text-center text-white">
-        <div class="container">
-            <h1 class="display-4 fw-bold mb-3">Find Your Second Home in Faisalabad</h1>
-            <p class="lead mb-4">Safe, affordable, and verified hostels for students & professionals.</p>
-            
-            <!-- Search Box -->
-            <div class="search-box p-4 bg-white rounded shadow-lg mx-auto" style="max-width: 1000px;">
-                <form method="GET" class="row g-3">
-                    <!-- 1. TYPE SELECT (Responsive: Full width on mobile, half on tablet, quarter on desktop) -->
-                    <div class="col-12 col-md-6 col-lg-3 text-start">
-                        <label class="form-label text-dark small fw-bold">TYPE</label>
-                        <select name="category" class="form-select border-0 bg-light">
-                            <option value="">All Types</option>
-                            <option value="Boys">Boys Hostel</option>
-                            <option value="Girls">Girls Hostel</option>
-                            <option value="Family">Family Flat</option>
-                        </select>
-                    </div>
-
-                    <!-- 2. AREA SELECT -->
-                    <div class="col-12 col-md-6 col-lg-3 text-start">
-                        <label class="form-label text-dark small fw-bold">LOCATION</label>
-                        <select name="area" class="form-select border-0 bg-light">
-                            <option value="">All Areas</option>
-                            <option value="D-Ground">D-Ground</option>
-                            <option value="Kohinoor City">Kohinoor City</option>
-                            <option value="Peoples Colony">Peoples Colony</option>
-                            <option value="Satyana Road">Satyana Road</option>
-                            <option value="Madina Town">Madina Town</option>
-                        </select>
-                    </div>
-
-                    <!-- 3. BUDGET INPUT -->
-                    <div class="col-12 col-md-6 col-lg-3 text-start">
-                        <label class="form-label text-dark small fw-bold">BUDGET</label>
-                        <input type="number" name="max_price" class="form-control border-0 bg-light" placeholder="Max Price (PKR)">
-                    </div>
-
-                    <!-- 4. SEARCH BUTTON -->
-                    <div class="col-12 col-md-6 col-lg-3 d-grid">
-                        <label class="form-label text-white small d-none d-lg-block">.</label> <!-- Hide label on mobile to save space -->
-                        <button type="submit" class="btn btn-primary fw-bold mt-lg-0 mt-2">SEARCH</button>
-                    </div>
-                </form>
-            </div>
-            <!-- End Search Box -->
-        </div>
-    </div>
-    <!-- HERO SECTION END -->
-
-    <!-- Hostel Listings -->
-    <div class="container mt-5 mb-5">
-        <div class="row g-4"> <!-- Added g-4 for better gap spacing -->
+<!-- LISTINGS -->
+<div class="content-wrapper my-5">
+    <div class="container">
+        <h3 class="fw-bold mb-4" style="font-family: 'Cinzel'; border-left: 5px solid var(--gold); padding-left: 15px;">Featured Residences</h3>
+        
+        <div class="row g-4">
             <?php
-            $sql = "SELECT * FROM hostels WHERE 1=1";
-            
-            if (!empty($_GET['area'])) {
-                $area = $conn->real_escape_string($_GET['area']);
-                $sql .= " AND area = '$area'";
-            }
-            if (!empty($_GET['max_price'])) {
-                $price = $conn->real_escape_string($_GET['max_price']);
-                $sql .= " AND price <= $price";
-            }
-            if (!empty($_GET['category'])) {
-                $cat = $conn->real_escape_string($_GET['category']);
-                $sql .= " AND category = '$cat'";
-            }
-
+            $area = isset($_GET['area']) ? $_GET['area'] : '';
+            $sql = "SELECT * FROM hostels WHERE area LIKE '%$area%'";
             $result = $conn->query($sql);
-            
+
+            // Get User ID for wishlist check
+            $uid = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0;
+
             if ($result && $result->num_rows > 0) {
                 while($row = $result->fetch_assoc()) {
+                    
+                    // CHECK: Is this hostel already in wishlist?
+                    $is_saved = false;
+                    if(isset($_SESSION['role']) && $_SESSION['role'] == 'student') {
+                        $hid = $row['id'];
+                        $check = $conn->query("SELECT id FROM wishlist WHERE student_id = $uid AND hostel_id = $hid");
+                        if($check->num_rows > 0) { $is_saved = true; }
+                    }
+                    $heart_class = $is_saved ? 'active' : '';
             ?>
-                <!-- RESPONSIVE GRID: Mobile(1), Tablet(2), Desktop(3) -->
-                <div class="col-12 col-md-6 col-lg-4"> 
-                    <div class="card h-100 shadow-sm border-0">
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
                         
                         <!-- IMAGE CONTAINER -->
-                        <div class="position-relative overflow-hidden">
-                            <img src="<?php echo !empty($row['image_url']) ? $row['image_url'] : 'https://via.placeholder.com/300'; ?>" class="card-img-top hostel-img" alt="Hostel">
+                        <div class="position-relative">
+                            <img src="<?php echo !empty($row['image']) ? 'uploads/'.$row['image'] : 'https://via.placeholder.com/400x300'; ?>" 
+                                 class="card-img-top" style="height: 220px; object-fit: cover;">
                             
-                            <!-- WISHLIST HEART BUTTON (Only for Students) -->
-                            <?php if(isset($_SESSION['user_id']) && $_SESSION['role'] == 'student'): 
-                                $uid = $_SESSION['user_id'];
-                                $hid = $row['id'];
-                                $w_check = $conn->query("SELECT * FROM wishlist WHERE student_id=$uid AND hostel_id=$hid");
-                                $is_active = ($w_check->num_rows > 0) ? 'text-danger' : 'text-secondary';
-                            ?>
-                            <button class="position-absolute top-0 end-0 m-3 btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" 
-                                    style="width: 40px; height: 40px;"
-                                    onclick="toggleWishlist(this, <?php echo $row['id']; ?>)">
-                                <i class="bi bi-heart-fill <?php echo $is_active; ?>"></i>
-                            </button>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <!-- CARD BODY -->
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between mb-2">
-                                <small class="text-muted"><i class="bi bi-geo-alt-fill text-danger"></i> <?php echo htmlspecialchars($row['area']); ?></small>
-                                
-                                <!-- Verified Check -->
-                                <?php if(isset($row['is_verified']) && $row['is_verified'] == 1): ?>
-                                    <small class="text-primary fw-bold"><i class="bi bi-patch-check-fill"></i> Verified</small>
-                                <?php endif; ?>
-                            </div>
+                            <!-- ✅ 1. COMPARE CHECKBOX -->
+                            <input type="checkbox" class="compare-checkbox" onclick="addToCompare(<?php echo $row['id']; ?>)" title="Select to Compare">
 
-                            <!-- NAME & PRICE ROW -->
-                            <div class="d-flex justify-content-between align-items-center mt-2">
-                                <h5 class="card-title fw-bold text-dark mb-0 text-truncate" style="max-width: 60%;">
-                                    <?php echo htmlspecialchars($row['name']); ?>
-                                </h5>
-                                <h5 class="text-primary fw-bold mb-0">
-                                    Rs. <?php echo number_format($row['price']); ?>
-                                </h5>
+                            <!-- ♥️ HEART BUTTON -->
+                            <button class="wishlist-btn <?php echo $heart_class; ?>" onclick="toggleWishlist(this, <?php echo $row['id']; ?>)">
+                                <i class="bi bi-heart-fill"></i>
+                            </button>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="badge bg-light text-dark border"><?php echo $row['category']; ?></span>
+                                <?php if($row['is_verified']) echo '<i class="bi bi-patch-check-fill text-primary" title="Verified"></i>'; ?>
                             </div>
-                            
-                            <p class="card-text text-secondary small mt-2">
-                                <?php echo substr(htmlspecialchars($row['description']), 0, 70); ?>...
-                            </p>
-                            
-                            <hr class="my-3 opacity-25">
-                            <div class="d-grid">
-                                <a href="details.php?id=<?php echo $row['id']; ?>" class="btn btn-outline-primary fw-bold rounded-pill">View Details</a>
+                            <h5 class="fw-bold"><?php echo $row['name']; ?></h5>
+                            <p class="text-muted small"><i class="bi bi-geo-alt"></i> <?php echo $row['area']; ?></p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <h5 class="mb-0 text-success fw-bold">Rs. <?php echo number_format($row['price']); ?></h5>
+                                <a href="details.php?id=<?php echo $row['id']; ?>" class="btn btn-outline-dark rounded-pill btn-sm px-4">Details</a>
                             </div>
                         </div>
                     </div>
@@ -153,85 +107,74 @@
             <?php 
                 }
             } else {
-                echo "<div class='col-12 text-center py-5 text-muted'><h4>No hostels found matching your criteria.</h4></div>";
+                echo "<div class='col-12 text-center text-muted py-5'>No hostels found.</div>";
             }
             ?>
         </div>
     </div>
+</div>
 
-    <!-- FOOTER START (Responsive Alignment) -->
-    <footer class="bg-dark text-white mt-5 pt-5 pb-3">
-        <div class="container">
-            <div class="row text-center text-md-start">
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning fw-bold">HostelHub 🇵🇰</h5>
-                    <p class="small text-secondary">
-                        The easiest way for students in Faisalabad to find reliable, affordable, and safe hostel accommodation.
-                    </p>
-                </div>
-                
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning">Quick Links</h5>
-                    <ul class="list-unstyled">
-                        <li><a href="index.php" class="text-decoration-none text-secondary">Home Search</a></li>
-                        <li><a href="login.php" class="text-decoration-none text-secondary">Login / Register</a></li>
-                        <li><a href="#" class="text-decoration-none text-secondary">Terms of Service</a></li>
-                    </ul>
-                </div>
-                
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning">Contact Us</h5>
-                    <p class="small text-secondary">
-                        <i class="bi bi-geo-alt-fill"></i> D-Ground, Faisalabad<br>
-                        <i class="bi bi-envelope-fill"></i> support@hostelhub.com<br>
-                        <i class="bi bi-telephone-fill"></i> +92 300 1234567
-                    </p>
-                </div>
-            </div>
-            <hr class="border-secondary">
-            <div class="text-center small text-secondary">
-                &copy; <?php echo date('Y'); ?> HostelHub Faisalabad. All Rights Reserved.
-            </div>
-        </div>
-    </footer>
-    <!-- FOOTER END -->
+<!-- ✅ 2. FLOATING COMPARE BUTTON (Hidden by default) -->
+<div id="compareBtn">
+    <button onclick="goToCompare()" class="btn btn-dark shadow-lg rounded-pill px-4 py-2 border-gold fw-bold">
+        <i class="bi bi-arrow-left-right text-warning me-2"></i> Compare (<span id="count">0</span>/2)
+    </button>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- SCRIPTS -->
-    <script>
-        // 1. PRELOADER SCRIPT
-        window.addEventListener("load", function () {
-            var loader = document.getElementById("preloader");
-            loader.style.opacity = "0"; 
-            setTimeout(function(){ 
-                loader.style.display = "none"; 
-            }, 500);
-        });
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-        // 2. WISHLIST AJAX SCRIPT
-        function toggleWishlist(btn, hostelId) {
-            var icon = btn.querySelector("i");
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "process_wishlist.php", true);
-            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+<script>
+    // --- WISHLIST LOGIC ---
+    function toggleWishlist(btn, hostelId) {
+        $.post('toggle_wishlist.php', { hostel_id: hostelId }, function(response) {
+            response = response.trim();
             
-            xhr.onload = function () {
-                var response = this.responseText.trim();
-                
-                if (response == "added") {
-                    icon.classList.remove("text-secondary");
-                    icon.classList.add("text-danger"); // Change to Red
-                } else if (response == "removed") {
-                    icon.classList.remove("text-danger");
-                    icon.classList.add("text-secondary"); // Change to Grey
-                } else if (response == "login_required") {
-                    alert("Please Login as a Student to save hostels!");
-                    window.location.href = "login.php";
-                }
-            };
-            xhr.send("hostel_id=" + hostelId);
+            if (response === 'login_required') {
+                alert("Please login as a Student to save hostels.");
+                window.location.href = 'login.php';
+            } 
+            else if (response === 'added') {
+                $(btn).addClass('active'); // Turn Red
+                $(btn).find('i').addClass('text-danger');
+                $(btn).find('i').removeClass('text-secondary');
+            } 
+            else if (response === 'removed') {
+                $(btn).removeClass('active'); // Turn Grey
+                $(btn).find('i').removeClass('text-danger');
+                $(btn).find('i').addClass('text-secondary');
+            }
+        });
+    }
+
+    // --- COMPARISON LOGIC ---
+    let selected = [];
+    function addToCompare(id) {
+        if(selected.includes(id)) {
+            selected = selected.filter(item => item !== id); // Uncheck logic
+        } else {
+            if(selected.length < 2) selected.push(id); // Add logic (Max 2)
+            else {
+                alert("You can only compare 2 hostels at a time.");
+                // Uncheck the box immediately if limit reached
+                event.target.checked = false; 
+                return;
+            }
         }
-    </script>
+        
+        // Update Button UI
+        document.getElementById('count').innerText = selected.length;
+        document.getElementById('compareBtn').style.display = selected.length > 0 ? 'block' : 'none';
+    }
+
+    function goToCompare() {
+        if(selected.length === 2) {
+            window.location = `compare.php?h1=${selected[0]}&h2=${selected[1]}`;
+        } else {
+            alert("Please select exactly 2 hostels to compare.");
+        }
+    }
+</script>
+<?php include 'footer.php'; ?>
 </body>
 </html>

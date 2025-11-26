@@ -1,279 +1,167 @@
-code
-PHP
 <?php
-include 'config.php';
+include 'db.php';
+include 'header_sidebar.php';
 
-// 1. Security Checks
+// 1. Security Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'owner') {
-    header("Location: login.php"); exit();
+    echo "<script>window.location='login.php';</script>"; exit();
 }
 
-if (!isset($_GET['id'])) {
-    header("Location: add_hostel.php"); exit();
-}
-
-$hostel_id = $_GET['id'];
 $owner_id = $_SESSION['user_id'];
+$hostel_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-// 2. Verify Ownership
-$stmt = $conn->prepare("SELECT * FROM hostels WHERE id = ? AND owner_id = ?");
-$stmt->bind_param("ii", $hostel_id, $owner_id);
-$stmt->execute();
-$result = $stmt->get_result();
+// 2. Fetch Hostel Data & Verify Ownership
+$sql = "SELECT * FROM hostels WHERE id = $hostel_id AND owner_id = $owner_id";
+$result = $conn->query($sql);
 
-if ($result->num_rows == 0) die("Hostel not found or Permission Denied.");
-$row = $result->fetch_assoc();
-
-// 3. HANDLE IMAGE DELETION
-if (isset($_GET['del_img'])) {
-    $img_id = $_GET['del_img'];
-    $q = $conn->query("SELECT image_path FROM hostel_images WHERE id = $img_id AND hostel_id = $hostel_id");
-    if($q->num_rows > 0) {
-        $img_data = $q->fetch_assoc();
-        if(file_exists($img_data['image_path'])) { unlink($img_data['image_path']); }
-        $conn->query("DELETE FROM hostel_images WHERE id = $img_id");
-    }
-    header("Location: edit_hostel.php?id=$hostel_id&msg=deleted");
+if ($result->num_rows == 0) {
+    echo "<div class='content-wrapper container mt-5'><div class='alert alert-danger'>
+            <h3>Error!</h3>
+            <p>Hostel not found or you do not have permission to edit this.</p>
+            <a href='owner_bookings.php' class='btn btn-dark'>Back to Dashboard</a>
+          </div></div>";
     exit();
 }
 
-// 4. HANDLE FORM UPDATE
-$msg = "";
-if (isset($_GET['msg']) && $_GET['msg'] == 'deleted') {
-    $msg = "<div class='alert alert-warning'>Image deleted successfully.</div>";
+$hostel = $result->fetch_assoc();
+
+// 3. Handle Image Deletion
+if (isset($_GET['delete_img'])) {
+    $img_path = $_GET['delete_img'];
+    // Remove from DB
+    $conn->query("DELETE FROM hostel_images WHERE hostel_id = $hostel_id AND image_path = '$img_path'");
+    // Remove file from folder
+    if(file_exists("uploads/$img_path")) { unlink("uploads/$img_path"); }
+    
+    echo "<script>window.location.href='edit_hostel.php?id=$hostel_id';</script>";
 }
 
+// 4. Handle Form Submission (Update Details)
 if (isset($_POST['update_hostel'])) {
     $name = $_POST['name'];
+    $category = $_POST['category'];
     $area = $_POST['area'];
     $price = $_POST['price'];
     $desc = $_POST['desc'];
-    $facilities = $_POST['facilities'];
-    $contact = $_POST['contact'];
-    $cat = $_POST['category'];
-    $room = $_POST['room_type'];
-    $lat = $_POST['lat'];
-    $lng = $_POST['lng'];
+    $facilities = isset($_POST['facilities']) ? implode(',', $_POST['facilities']) : "";
 
-    // A. Update Text Data
-    $sql = "UPDATE hostels SET name=?, area=?, price=?, description=?, facilities=?, contact_number=?, category=?, room_type=?, latitude=?, longitude=? WHERE id=?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssdsssssssi", $name, $area, $price, $desc, $facilities, $contact, $cat, $room, $lat, $lng, $hostel_id);
+    $stmt = $conn->prepare("UPDATE hostels SET name=?, category=?, area=?, price=?, description=?, facilities=? WHERE id=?");
+    $stmt->bind_param("sssdssi", $name, $category, $area, $price, $desc, $facilities, $hostel_id);
     
     if ($stmt->execute()) {
-        // B. Handle NEW Images
+        
+        // Handle NEW Images
         if (!empty($_FILES['images']['name'][0])) {
-            if (!is_dir('uploads')) { mkdir('uploads'); }
-            $countfiles = count($_FILES['images']['name']);
-            $first_new_image = "";
-
-            for($i = 0; $i < $countfiles; $i++) {
-                $filename = $_FILES['images']['name'][$i];
-                $target_file = "uploads/" . time() . "_" . $i . "_" . basename($filename);
-                if(move_uploaded_file($_FILES['images']['tmp_name'][$i], $target_file)) {
-                    $img_stmt = $conn->prepare("INSERT INTO hostel_images (hostel_id, image_path) VALUES (?, ?)");
-                    $img_stmt->bind_param("is", $hostel_id, $target_file);
-                    $img_stmt->execute();
-                    if($i == 0) $first_new_image = $target_file;
+            foreach ($_FILES['images']['name'] as $key => $val) {
+                $img_name = time() . "_" . basename($_FILES['images']['name'][$key]);
+                $tmp_name = $_FILES['images']['tmp_name'][$key];
+                
+                if(move_uploaded_file($tmp_name, "uploads/" . $img_name)) {
+                    $conn->query("INSERT INTO hostel_images (hostel_id, image_path) VALUES ($hostel_id, '$img_name')");
+                    // Update main thumbnail if empty
+                    $conn->query("UPDATE hostels SET image='$img_name' WHERE id=$hostel_id AND (image IS NULL OR image = '')");
                 }
             }
-            if($row['image_url'] == 'pending' || empty($row['image_url'])) {
-                $conn->query("UPDATE hostels SET image_url = '$first_new_image' WHERE id = $hostel_id");
-            }
         }
-        $msg = "<div class='alert alert-success'>Hostel Updated Successfully! <a href='add_hostel.php'>Back to Dashboard</a></div>";
         
-        // Refresh Data
-        $stmt = $conn->prepare("SELECT * FROM hostels WHERE id = ?");
-        $stmt->bind_param("i", $hostel_id);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
+        echo "<script>alert('Hostel Updated Successfully!'); window.location='edit_hostel.php?id=$hostel_id';</script>";
     } else {
-        $msg = "<div class='alert alert-danger'>Error updating record.</div>";
+        echo "<div class='alert alert-danger'>Error: " . $conn->error . "</div>";
     }
 }
+
+// 5. Fetch Current Images
+$img_res = $conn->query("SELECT image_path FROM hostel_images WHERE hostel_id = $hostel_id");
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Hostel - HostelHub</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    
-    <!-- PRELOADER -->
-    <div id="preloader"><div class="spinner"></div></div>
-
-    <?php include 'navbar.php'; ?>
-
-    <div class="container mt-5 mb-5" style="max-width: 900px;">
-        <div class="card shadow border-0">
-            <div class="card-header bg-white border-0 pt-4 px-4">
-                <h3 class="fw-bold text-primary">Edit Hostel Details</h3>
+<div class="content-wrapper">
+    <div class="container" style="max-width: 900px;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0" style="font-family: 'Cinzel';">Edit Hostel Details</h2>
+            <a href="owner_bookings.php" class="btn btn-outline-dark">Back to Dashboard</a>
+        </div>
+        
+        <form method="POST" enctype="multipart/form-data" class="card p-5 shadow-sm border-0">
+            
+            <!-- Basic Info -->
+            <div class="mb-3">
+                <label class="fw-bold">Hostel Name</label>
+                <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($hostel['name']); ?>" required>
             </div>
-            <div class="card-body p-4">
-                <?php echo $msg; ?>
-                
-                <form method="POST" enctype="multipart/form-data">
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Category</label>
+                    <select name="category" class="form-select">
+                        <option <?php echo ($hostel['category'] == 'Boys') ? 'selected' : ''; ?>>Boys</option>
+                        <option <?php echo ($hostel['category'] == 'Girls') ? 'selected' : ''; ?>>Girls</option>
+                        <option <?php echo ($hostel['category'] == 'Family') ? 'selected' : ''; ?>>Family</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Area / City</label>
+                    <input type="text" name="area" class="form-control" value="<?php echo htmlspecialchars($hostel['area']); ?>" required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-bold">Price (PKR)</label>
+                <input type="number" name="price" class="form-control" value="<?php echo $hostel['price']; ?>" required>
+            </div>
+
+            <!-- Facilities Checkboxes (Auto-Checked) -->
+            <div class="mb-3 p-3 bg-light rounded">
+                <label class="fw-bold mb-2">Facilities:</label><br>
+                <div class="btn-group flex-wrap gap-2" role="group">
+                    <?php 
+                    $my_facs = explode(',', $hostel['facilities']); // Convert DB string to array
+                    $all_facs = ['WiFi', 'Mess', 'Laundry', 'Generator', 'CCTV', 'Parking'];
                     
-                    <!-- Name & Area -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold">Hostel Name</label>
-                            <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($row['name']); ?>" required>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold">Area</label>
-                            <select name="area" class="form-select">
-                                <option value="<?php echo $row['area']; ?>" selected><?php echo $row['area']; ?> (Current)</option>
-                                <option value="D-Ground">D-Ground</option>
-                                <option value="Kohinoor City">Kohinoor City</option>
-                                <option value="Peoples Colony">Peoples Colony</option>
-                                <option value="Satyana Road">Satyana Road</option>
-                                <option value="Madina Town">Madina Town</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Category & Room Type -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold">Category</label>
-                            <select name="category" class="form-select">
-                                <option value="Boys" <?php if($row['category']=='Boys') echo 'selected'; ?>>Boys</option>
-                                <option value="Girls" <?php if($row['category']=='Girls') echo 'selected'; ?>>Girls</option>
-                                <option value="Family" <?php if($row['category']=='Family') echo 'selected'; ?>>Family</option>
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold">Room Type</label>
-                            <select name="room_type" class="form-select">
-                                <option value="Shared" <?php if($row['room_type']=='Shared') echo 'selected'; ?>>Shared</option>
-                                <option value="Single" <?php if($row['room_type']=='Single') echo 'selected'; ?>>Single</option>
-                                <option value="Dorm" <?php if($row['room_type']=='Dorm') echo 'selected'; ?>>Dorm</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Price & Desc -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Price (PKR)</label>
-                        <input type="number" name="price" class="form-control" value="<?php echo $row['price']; ?>" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Description</label>
-                        <textarea name="desc" class="form-control" rows="4"><?php echo htmlspecialchars($row['description']); ?></textarea>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Facilities</label>
-                        <input type="text" name="facilities" class="form-control" value="<?php echo htmlspecialchars($row['facilities']); ?>">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Contact Number</label>
-                        <input type="text" name="contact" class="form-control" value="<?php echo htmlspecialchars($row['contact_number']); ?>">
-                    </div>
-
-                    <!-- =========================================== -->
-                    <!-- IMAGE MANAGEMENT SECTION -->
-                    <!-- =========================================== -->
-                    <div class="card bg-light p-3 mb-4 border-0">
-                        <label class="form-label fw-bold">Manage Images</label>
-                        
-                        <!-- Responsive Grid for Images -->
-                        <div class="row g-2 mb-3">
-                            <?php
-                            $gallery = $conn->query("SELECT * FROM hostel_images WHERE hostel_id = $hostel_id");
-                            if($gallery->num_rows > 0) {
-                                while($img = $gallery->fetch_assoc()) {
-                                    echo '<div class="col-4 col-sm-3 col-md-2 position-relative">
-                                            <div class="ratio ratio-1x1">
-                                                <img src="'.$img['image_path'].'" class="rounded shadow-sm w-100 h-100" style="object-fit: cover;">
-                                            </div>
-                                            <a href="edit_hostel.php?id='.$hostel_id.'&del_img='.$img['id'].'" class="position-absolute top-0 end-0 badge bg-danger text-decoration-none m-1 shadow-sm" onclick="return confirm(\'Delete this image?\')">
-                                                <i class="bi bi-x-lg"></i>
-                                            </a>
-                                          </div>';
-                                }
-                            } else {
-                                echo "<div class='col-12'><p class='text-muted small'>No additional images uploaded.</p></div>";
-                            }
-                            ?>
-                        </div>
-
-                        <!-- 2. Upload New Images -->
-                        <label class="form-label small fw-bold text-primary">Add More Photos (Multiple)</label>
-                        <input type="file" name="images[]" class="form-control" multiple>
-                        <small class="text-muted">Hold 'Ctrl' to select multiple.</small>
-                    </div>
-                    <!-- =========================================== -->
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-6">
-                            <input type="text" name="lat" class="form-control" value="<?php echo $row['latitude']; ?>" placeholder="Latitude">
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <input type="text" name="lng" class="form-control" value="<?php echo $row['longitude']; ?>" placeholder="Longitude">
-                        </div>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <button type="submit" name="update_hostel" class="btn btn-primary fw-bold">Update Details</button>
-                        <a href="add_hostel.php" class="btn btn-secondary">Cancel</a>
-                    </div>
-                </form>
+                    foreach($all_facs as $f) {
+                        $checked = in_array($f, $my_facs) ? "checked" : "";
+                        echo "<input type='checkbox' class='btn-check' name='facilities[]' value='$f' id='edit_$f' $checked>
+                              <label class='btn btn-outline-dark rounded-pill px-3' for='edit_$f'>$f</label>";
+                    }
+                    ?>
+                </div>
             </div>
-        </div>
+
+            <div class="mb-3">
+                <label class="fw-bold">Description</label>
+                <textarea name="desc" class="form-control" rows="4"><?php echo htmlspecialchars($hostel['description']); ?></textarea>
+            </div>
+
+            <!-- MANAGE IMAGES SECTION -->
+            <div class="mb-4 border p-3 rounded">
+                <label class="fw-bold text-primary mb-3"><i class="bi bi-images"></i> Manage Photos</label>
+                
+                <!-- Existing Images Gallery -->
+                <div class="d-flex flex-wrap gap-3 mb-3">
+                    <?php 
+                    if($img_res->num_rows > 0) {
+                        while($img = $img_res->fetch_assoc()) {
+                            echo "<div class='position-relative'>
+                                    <img src='uploads/{$img['image_path']}' class='rounded shadow-sm' style='width: 100px; height: 100px; object-fit: cover;'>
+                                    <a href='edit_hostel.php?id=$hostel_id&delete_img={$img['image_path']}' class='btn btn-danger btn-sm position-absolute top-0 end-0' style='border-radius: 50%; padding: 0px 6px;' onclick=\"return confirm('Delete this photo?');\">×</a>
+                                  </div>";
+                        }
+                    } else {
+                        echo "<small class='text-muted'>No photos uploaded yet.</small>";
+                    }
+                    ?>
+                </div>
+
+                <!-- Add New Images -->
+                <label class="small fw-bold">Add New Photos:</label>
+                <input type="file" name="images[]" class="form-control mt-1" multiple accept="image/*">
+            </div>
+
+            <button type="submit" name="update_hostel" class="btn btn-gold w-100 py-3 fw-bold fs-5 shadow-sm">
+                Update Hostel Details
+            </button>
+        </form>
     </div>
-
-    <!-- FOOTER START -->
-    <footer class="bg-dark text-white mt-5 pt-5 pb-3">
-        <div class="container">
-            <div class="row text-center text-md-start">
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning fw-bold">HostelHub 🇵🇰</h5>
-                    <p class="small text-secondary">
-                        The easiest way for students in Faisalabad to find reliable, affordable, and safe hostel accommodation.
-                    </p>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning">Quick Links</h5>
-                    <ul class="list-unstyled">
-                        <li><a href="index.php" class="text-decoration-none text-secondary">Home Search</a></li>
-                        <li><a href="login.php" class="text-decoration-none text-secondary">Login / Register</a></li>
-                        <li><a href="#" class="text-decoration-none text-secondary">Terms of Service</a></li>
-                    </ul>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning">Contact Us</h5>
-                    <p class="small text-secondary">
-                        D-Ground, Faisalabad <br> +92 300 1234567
-                    </p>
-                </div>
-            </div>
-            <hr class="border-secondary">
-            <div class="text-center small text-secondary">
-                &copy; <?php echo date('Y'); ?> HostelHub Faisalabad. All Rights Reserved.
-            </div>
-        </div>
-    </footer>
-    <!-- FOOTER END -->
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Animation Script -->
-    <script>
-        window.addEventListener("load", function () {
-            var loader = document.getElementById("preloader");
-            loader.style.opacity = "0"; 
-            setTimeout(function(){ loader.style.display = "none"; }, 500);
-        });
-    </script>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

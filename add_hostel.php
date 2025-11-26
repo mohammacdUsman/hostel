@@ -1,251 +1,144 @@
 <?php
-include 'config.php';
+include 'db.php';
+include 'header_sidebar.php';
 
-// Access Control
+// Security Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'owner') {
-    header("Location: login.php"); 
-    exit();
+    echo "<script>window.location='login.php';</script>"; exit();
 }
 
-$msg = "";
-
 if (isset($_POST['add_hostel'])) {
+    $owner_id = $_SESSION['user_id'];
     $name = $_POST['name'];
-    $area = $_POST['area'];
+    $category = $_POST['category'];
+    $area = $_POST['area']; // Using 'area' as confirmed by your DB
     $price = $_POST['price'];
     $desc = $_POST['desc'];
-    $facilities = $_POST['facilities'];
-    $contact = $_POST['contact'];
-    $lat = $_POST['lat'];
-    $lng = $_POST['lng'];
-    $category = $_POST['category']; 
-    $room_type = $_POST['room_type'];
-    $owner_id = $_SESSION['user_id'];
     
-    // 1. INSERT HOSTEL DATA
-    $stmt = $conn->prepare("INSERT INTO hostels (owner_id, name, area, price, description, facilities, contact_number, latitude, longitude, category, room_type, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
-    $stmt->bind_param("issssssssss", $owner_id, $name, $area, $price, $desc, $facilities, $contact, $lat, $lng, $category, $room_type);
+    // 1. Handle Facilities
+    $facilities = isset($_POST['facilities']) ? implode(',', $_POST['facilities']) : "";
+
+    // 2. Prepare SQL Statement
+    $sql = "INSERT INTO hostels (owner_id, name, category, area, price, description, facilities) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+
+    // DIAGNOSTIC CHECK: Prints exact error if DB mismatch occurs
+    if ($stmt === false) {
+        die("<div class='container mt-5'><div class='alert alert-danger'>
+             <h4>Database Error!</h4>
+             <p>The system could not prepare the query.</p>
+             <strong>Details:</strong> " . $conn->error . "
+             </div></div>");
+    }
+
+    $stmt->bind_param("isssdss", $owner_id, $name, $category, $area, $price, $desc, $facilities);
     
     if ($stmt->execute()) {
-        $hostel_id = $stmt->insert_id; 
-        $main_image = ""; 
+        $hostel_id = $stmt->insert_id; // Get the ID of the new hostel
 
-        // 2. HANDLE MULTIPLE IMAGES
-        if (!is_dir('uploads')) { mkdir('uploads'); }
+        // 3. Handle Multiple Images Upload
+        if (!empty($_FILES['images']['name'][0])) {
+            // Create uploads folder if not exists
+            if (!is_dir('uploads')) { mkdir('uploads', 0777, true); }
 
-        $countfiles = count($_FILES['images']['name']);
-
-        for($i = 0; $i < $countfiles; $i++) {
-            $filename = $_FILES['images']['name'][$i];
-            $target_file = "uploads/" . time() . "_" . $i . "_" . basename($filename);
-            
-            if(move_uploaded_file($_FILES['images']['tmp_name'][$i], $target_file)) {
-                $img_stmt = $conn->prepare("INSERT INTO hostel_images (hostel_id, image_path) VALUES (?, ?)");
-                $img_stmt->bind_param("is", $hostel_id, $target_file);
-                $img_stmt->execute();
-
-                if($i == 0) { $main_image = $target_file; }
+            foreach ($_FILES['images']['name'] as $key => $val) {
+                $img_name = time() . "_" . basename($_FILES['images']['name'][$key]);
+                $tmp_name = $_FILES['images']['tmp_name'][$key];
+                
+                if(move_uploaded_file($tmp_name, "uploads/" . $img_name)) {
+                    // Save to hostel_images table
+                    $conn->query("INSERT INTO hostel_images (hostel_id, image_path) VALUES ($hostel_id, '$img_name')");
+                    
+                    // Set the first image as the main thumbnail
+                    if($key == 0) {
+                        $conn->query("UPDATE hostels SET image='$img_name' WHERE id=$hostel_id");
+                    }
+                }
             }
         }
 
-        // 3. UPDATE MAIN IMAGE
-        if($main_image != "") {
-            $update = $conn->prepare("UPDATE hostels SET image_url = ? WHERE id = ?");
-            $update->bind_param("si", $main_image, $hostel_id);
-            $update->execute();
-        }
-
-        $msg = "<div class='alert alert-success'>Hostel & Images Uploaded Successfully!</div>";
+        echo "<script>alert('Hostel Added Successfully!'); window.location='owner_bookings.php';</script>";
     } else {
-        $msg = "<div class='alert alert-danger'>Database Error: " . $conn->error . "</div>";
+        echo "<div class='alert alert-danger'>Error: " . $stmt->error . "</div>";
     }
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Owner Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    
-    <!-- PRELOADER -->
-    <div id="preloader"><div class="spinner"></div></div>
-
-    <?php include 'navbar.php'; ?>
-
-    <div class="container mt-4 mb-5">
+<div class="content-wrapper">
+    <div class="container" style="max-width: 800px;">
+        <h2 class="fw-bold mb-4" style="font-family: 'Cinzel';">Add New Hostel</h2>
         
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="fw-bold text-dark">Owner Dashboard</h2>
-            <!-- Mobile responsive button sizing -->
-            <a href="owner_bookings.php" class="btn btn-warning fw-bold shadow-sm">
-                <i class="bi bi-bell-fill"></i> <span class="d-none d-md-inline">Bookings</span>
-            </a>
-        </div>
-
-        <!-- STATS SECTION (Responsive Grid) -->
-        <div class="row mb-4">
-            <?php
-            $oid = $_SESSION['user_id'];
-            $total_hostels = $conn->query("SELECT COUNT(*) as c FROM hostels WHERE owner_id=$oid")->fetch_assoc()['c'];
-            $total_views = $conn->query("SELECT SUM(views) as v FROM hostels WHERE owner_id=$oid")->fetch_assoc()['v'];
-            $pending_req = $conn->query("SELECT COUNT(*) as c FROM bookings b JOIN hostels h ON b.hostel_id=h.id WHERE h.owner_id=$oid AND b.status='pending'")->fetch_assoc()['c'];
-            ?>
-            <!-- col-12 (Mobile), col-md-4 (Desktop) -->
-            <div class="col-12 col-md-4 mb-3">
-                <div class="stat-card h-100">
-                    <h3><?php echo $total_hostels; ?></h3><p>Listings</p>
+        <form method="POST" enctype="multipart/form-data" class="card p-5 shadow-sm border-0">
+            
+            <!-- Basic Info -->
+            <div class="mb-3">
+                <label class="fw-bold">Hostel Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Sunshine Boys Hostel" required>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Category</label>
+                    <select name="category" class="form-select">
+                        <option>Boys</option><option>Girls</option><option>Family</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Area / City</label>
+                    <input type="text" name="area" class="form-control" placeholder="e.g. D-Ground" required>
                 </div>
             </div>
-            <div class="col-12 col-md-4 mb-3">
-                <div class="stat-card h-100" style="border-left-color: #10b981;">
-                    <h3><?php echo $total_views ? $total_views : 0; ?></h3><p>Total Views</p>
-                </div>
+
+            <div class="mb-3">
+                <label class="fw-bold">Price (PKR)</label>
+                <input type="number" name="price" class="form-control" placeholder="e.g. 15000" required>
             </div>
-            <div class="col-12 col-md-4 mb-3">
-                <div class="stat-card h-100" style="border-left-color: #f59e0b;">
-                    <h3><?php echo $pending_req; ?></h3><p>Pending Requests</p>
-                </div>
-            </div>
-        </div>
 
-        <?php echo $msg; ?>
+            <!-- Facilities Checkboxes -->
+            <div class="mb-3 p-3 bg-light rounded">
+                <label class="fw-bold mb-2">Facilities Included:</label><br>
+                <div class="btn-group flex-wrap gap-2" role="group">
+                    <input type="checkbox" class="btn-check" name="facilities[]" value="WiFi" id="f1">
+                    <label class="btn btn-outline-dark rounded-pill px-3" for="f1"><i class="bi bi-wifi"></i> WiFi</label>
 
-        <!-- ADD HOSTEL FORM -->
-        <div class="card p-4 shadow-sm border-0 mb-5">
-            <h4 class="mb-4 text-primary fw-bold"><i class="bi bi-plus-circle-fill"></i> Add New Hostel</h4>
-            <form method="POST" enctype="multipart/form-data">
-                
-                <!-- Added 'g-3' for better spacing on mobile stack -->
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="fw-bold form-label">Hostel Name</label>
-                        <input type="text" name="name" class="form-control" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="fw-bold form-label">Area</label>
-                        <select name="area" class="form-select">
-                            <option>D-Ground</option>
-                            <option>Kohinoor City</option>
-                            <option>Peoples Colony</option>
-                            <option>Satyana Road</option>
-                            <option>Madina Town</option>
-                        </select>
-                    </div>
+                    <input type="checkbox" class="btn-check" name="facilities[]" value="Mess" id="f2">
+                    <label class="btn btn-outline-dark rounded-pill px-3" for="f2"><i class="bi bi-egg-fried"></i> Mess</label>
 
-                    <div class="col-md-6">
-                        <label class="fw-bold form-label">Type</label>
-                        <select name="category" class="form-select">
-                            <option>Boys</option>
-                            <option>Girls</option>
-                            <option>Family</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="fw-bold form-label">Room</label>
-                        <select name="room_type" class="form-select">
-                            <option>Shared</option>
-                            <option>Single</option>
-                            <option>Dorm</option>
-                        </select>
-                    </div>
+                    <input type="checkbox" class="btn-check" name="facilities[]" value="Laundry" id="f3">
+                    <label class="btn btn-outline-dark rounded-pill px-3" for="f3"><i class="bi bi-bucket"></i> Laundry</label>
 
-                    <div class="col-12">
-                        <label class="fw-bold form-label">Price (PKR)</label>
-                        <input type="number" name="price" class="form-control" required>
-                    </div>
-
-                    <div class="col-12">
-                        <label class="fw-bold form-label">Description</label>
-                        <textarea name="desc" class="form-control" rows="3"></textarea>
-                    </div>
-
-                    <div class="col-12">
-                        <label class="fw-bold form-label">Facilities</label>
-                        <input type="text" name="facilities" class="form-control" placeholder="e.g. WiFi, AC, Mess">
-                    </div>
+                    <input type="checkbox" class="btn-check" name="facilities[]" value="Generator" id="f4">
+                    <label class="btn btn-outline-dark rounded-pill px-3" for="f4"><i class="bi bi-lightning-charge"></i> UPS/Gen</label>
                     
-                    <div class="col-md-6">
-                        <label class="fw-bold form-label">Contact</label>
-                        <input type="text" name="contact" class="form-control" required>
-                    </div>
+                    <input type="checkbox" class="btn-check" name="facilities[]" value="CCTV" id="f5">
+                    <label class="btn btn-outline-dark rounded-pill px-3" for="f5"><i class="bi bi-camera-video"></i> CCTV</label>
                     
-                    <div class="col-md-6">
-                        <label class="fw-bold form-label">Upload Photos (Select Multiple)</label>
-                        <input type="file" name="images[]" class="form-control" multiple required>
-                        <small class="text-muted d-block mt-1">Hold 'Ctrl' to select multiple images.</small>
-                    </div>
-
-                    <div class="col-md-6">
-                        <input type="text" name="lat" placeholder="Latitude" class="form-control">
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text" name="lng" placeholder="Longitude" class="form-control">
-                    </div>
+                    <input type="checkbox" class="btn-check" name="facilities[]" value="Parking" id="f6">
+                    <label class="btn btn-outline-dark rounded-pill px-3" for="f6"><i class="bi bi-car-front"></i> Parking</label>
                 </div>
-                
-                <button type="submit" name="add_hostel" class="btn btn-primary mt-4 w-100 fw-bold py-2">Publish Listing</button>
-            </form>
-        </div>
-        
-        <!-- MANAGED HOSTELS TABLE (RESPONSIVE WRAPPER ADDED) -->
-        <h3 class="fw-bold mb-3">My Managed Hostels</h3>
-        
-        <!-- This div makes the table scroll horizontally on mobile -->
-        <div class="table-responsive rounded shadow-sm">
-            <table class="table table-bordered table-hover bg-white mb-0 align-middle">
-                <thead class="table-dark text-nowrap">
-                    <tr>
-                        <th style="width: 80px;">Image</th>
-                        <th>Name</th>
-                        <th>Price</th>
-                        <th style="width: 180px;">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $res = $conn->query("SELECT * FROM hostels WHERE owner_id = '$oid'");
-                    if ($res->num_rows > 0) {
-                        while($row = $res->fetch_assoc()) {
-                            echo "<tr>
-                                <td class='text-center'><img src='".$row['image_url']."' class='rounded' width='50' height='50' style='object-fit:cover;'></td>
-                                <td class='fw-bold'>".$row['name']."</td>
-                                <td>Rs. ".number_format($row['price'])."</td>
-                                <td>
-                                    <div class='d-flex gap-2'>
-                                        <a href='edit_hostel.php?id=".$row['id']."' class='btn btn-warning btn-sm text-white'><i class='bi bi-pencil-square'></i> Edit</a>
-                                        <a href='delete_hostel.php?id=".$row['id']."' class='btn btn-danger btn-sm' onclick='return confirm(\"Delete this hostel?\")'><i class='bi bi-trash'></i></a>
-                                    </div>
-                                </td>
-                            </tr>";
-                        }
-                    } else {
-                        echo "<tr><td colspan='4' class='text-center py-4 text-muted'>No listings found. Add one above!</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
-        </div>
+            </div>
 
+            <div class="mb-3">
+                <label class="fw-bold">Description</label>
+                <textarea name="desc" class="form-control" rows="4" placeholder="Tell students about your hostel..."></textarea>
+            </div>
+            <div class="mb-3">
+    <label class="fw-bold">Google Maps Embed Code (Optional)</label>
+    <textarea name="map_embed" class="form-control" rows="3" placeholder='Paste the <iframe> code from Google Maps here...'></textarea>
+</div>
+            <!-- Multiple Image Upload -->
+            <div class="mb-4 border p-3 rounded">
+                <label class="fw-bold text-primary"><i class="bi bi-images"></i> Upload Photos</label>
+                <input type="file" name="images[]" class="form-control mt-2" multiple required accept="image/*">
+                <small class="text-muted">Hold <strong>Ctrl</strong> (or Cmd) to select multiple images at once.</small>
+            </div>
+
+            <button type="submit" name="add_hostel" class="btn btn-gold w-100 py-3 fw-bold fs-5 shadow-sm">
+                Save Hostel & Publish
+            </button>
+        </form>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Animation Loader -->
-    <script>
-        window.addEventListener("load", function () {
-            var loader = document.getElementById("preloader");
-            if(loader) {
-                loader.style.opacity = "0"; 
-                setTimeout(function(){ loader.style.display = "none"; }, 500);
-            }
-        });
-    </script>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

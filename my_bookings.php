@@ -1,146 +1,168 @@
 <?php
-include 'config.php';
+include 'db.php';
 
-// 1. SECURITY FIX: Allow 'student' role
+// 1. SECURITY CHECK (MUST BE BEFORE HEADER_SIDEBAR)
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'student') {
     header("Location: login.php"); 
     exit();
 }
+
+// 2. Load Layout (Only after security check passes)
+include 'header_sidebar.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Bookings - HostelHub</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    
-    <!-- PRELOADER -->
-    <div id="preloader"><div class="spinner"></div></div>
+<div class="content-wrapper">
+    <div class="container mt-4" style="min-height: 60vh;">
+        <div class="d-flex align-items-center mb-4">
+            <i class="bi bi-journal-bookmark-fill fs-2 me-3 text-gold" style="color: var(--gold);"></i>
+            <h2 class="fw-bold mb-0" style="font-family: 'Cinzel';">My Bookings & Payments</h2>
+        </div>
 
-    <!-- INCLUDE NAVBAR -->
-    <?php include 'navbar.php'; ?>
+        <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="ps-4">Hostel Details</th>
+                            <th>Booking Date</th>
+                            <th>Status</th>
+                            <th>Payment & Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $sid = $_SESSION['user_id'];
+                        $sql = "SELECT b.*, h.name, h.image, h.area, h.price 
+                                FROM bookings b 
+                                JOIN hostels h ON b.hostel_id = h.id 
+                                WHERE b.student_id = $sid 
+                                ORDER BY b.created_at DESC";
+                        $res = $conn->query($sql);
 
-    <div class="container mt-5" style="min-height: 60vh;">
-        <h2 class="fw-bold mb-4">My Booking Requests</h2>
+                        if ($res && $res->num_rows > 0) {
+                            while($row = $res->fetch_assoc()) {
+                                $status = ucfirst($row['status']);
+                                $badge = ($status=='Approved') ? 'bg-success' : (($status=='Pending') ? 'bg-warning text-dark' : 'bg-danger');
+                                // Handle image fallback
+                                $img = !empty($row['image']) ? 'uploads/'.$row['image'] : 'https://via.placeholder.com/50';
 
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-0">
-                
-                <!-- RESPONSIVE WRAPPER START -->
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light text-nowrap">
-                            <tr>
-                                <!-- Added min-width to prevent squashing on mobile -->
-                                <th class="ps-4" style="min-width: 200px;">Hostel</th>
-                                <th style="min-width: 120px;">Area</th>
-                                <th style="min-width: 120px;">Date Sent</th>
-                                <th style="min-width: 250px;">Message Sent</th>
-                                <th style="min-width: 100px;">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $student_id = $_SESSION['user_id'];
-                            
-                            // QUERY: Select bookings for the specific STUDENT
-                            $sql = "SELECT b.*, h.name, h.area, h.image_url 
-                                    FROM bookings b 
-                                    JOIN hostels h ON b.hostel_id = h.id 
-                                    WHERE b.student_id = '$student_id'
-                                    ORDER BY b.booking_date DESC";
-                                    
-                            $result = $conn->query($sql);
-
-                            if ($result->num_rows > 0) {
-                                while($row = $result->fetch_assoc()) {
-                                    // Status Color Logic
-                                    $status_class = 'bg-secondary';
-                                    if($row['status'] == 'approved') $status_class = 'bg-success';
-                                    if($row['status'] == 'pending') $status_class = 'bg-warning text-dark';
-                                    if($row['status'] == 'rejected') $status_class = 'bg-danger';
-
-                                    echo "<tr>";
-                                    // Hostel Image & Name
-                                    echo "<td class='ps-4'>
-                                            <div class='d-flex align-items-center'>
-                                                <img src='".$row['image_url']."' class='rounded me-3' style='width: 50px; height: 50px; object-fit: cover;'>
-                                                <span class='fw-bold'>".$row['name']."</span>
+                                echo "<tr>
+                                    <td class='ps-4'>
+                                        <div class='d-flex align-items-center'>
+                                            <img src='$img' class='rounded me-3' style='width:50px; height:50px; object-fit:cover;'>
+                                            <div>
+                                                <div class='fw-bold'>{$row['name']}</div>
+                                                <small class='text-muted'>{$row['area']} | Rs. ".number_format($row['price'])."</small>
                                             </div>
-                                          </td>";
-                                    echo "<td>" . $row['area'] . "</td>";
-                                    echo "<td>" . date('d M Y', strtotime($row['booking_date'])) . "</td>";
-                                    echo "<td class='text-muted small'><em>" . (empty($row['message']) ? 'No message' : substr($row['message'], 0, 50).'...') . "</em></td>";
-                                    echo "<td><span class='badge rounded-pill $status_class'>" . ucfirst($row['status']) . "</span></td>";
-                                    echo "</tr>";
-                                }
-                            } else {
-                                echo "<tr><td colspan='5' class='text-center py-5 text-muted'>You haven't booked any hostels yet. <br><a href='index.php' class='btn btn-primary btn-sm mt-2'>Browse Hostels</a></td></tr>";
-                            }
-                            ?>
-                        </tbody>
-                    </table>
-                </div>
-                <!-- RESPONSIVE WRAPPER END -->
+                                        </div>
+                                    </td>
+                                    <td>".date('d M Y', strtotime($row['created_at']))."</td>
+                                    <td><span class='badge $badge rounded-pill'>$status</span></td>
+                                    <td>
+                                        <div class='d-flex gap-2'>";
 
+                                // REPORT ISSUE BUTTON
+                                echo "<button class='btn btn-sm btn-light border' onclick='openComplaint({$row['hostel_id']})' title='Report Issue'>
+                                        <i class='bi bi-exclamation-triangle text-danger'></i>
+                                      </button>";
+
+                                // PAYMENT LOGIC
+                                if ($status == 'Approved') {
+                                    if (empty($row['payment_proof'])) {
+                                        echo "<button class='btn btn-sm btn-gold text-white fw-bold shadow-sm' onclick='openUploadModal({$row['id']})'>
+                                                <i class='bi bi-upload'></i> Pay Now
+                                              </button>";
+                                    } else {
+                                        echo "<a href='receipt.php?id={$row['id']}' target='_blank' class='btn btn-sm btn-outline-dark'>
+                                                <i class='bi bi-receipt'></i> Receipt
+                                              </a>";
+                                    }
+                                } else {
+                                    echo "<span class='text-muted small'>-</span>";
+                                }
+
+                                echo "  </div>
+                                    </td>
+                                </tr>";
+                            }
+                        } else {
+                            echo "<tr><td colspan='4' class='text-center py-5 text-muted'>You haven't booked any hostels yet.</td></tr>";
+                        }
+                        ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+</div>
 
-   <!-- FOOTER START -->
-    <footer class="bg-dark text-white mt-5 pt-5 pb-3">
-        <div class="container">
-            <div class="row text-center text-md-start">
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning fw-bold">HostelHub 🇵🇰</h5>
-                    <p class="small text-secondary">
-                        The easiest way for students in Faisalabad to find reliable, affordable, and safe hostel accommodation.
-                    </p>
-                </div>
-                
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning">Quick Links</h5>
-                    <ul class="list-unstyled">
-                        <li><a href="index.php" class="text-decoration-none text-secondary">Home Search</a></li>
-                        <li><a href="login.php" class="text-decoration-none text-secondary">Login / Register</a></li>
-                        <li><a href="#" class="text-decoration-none text-secondary">Terms of Service</a></li>
-                    </ul>
-                </div>
-                
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning">Contact Us</h5>
-                    <p class="small text-secondary">
-                        <i class="bi bi-geo-alt-fill"></i> D-Ground, Faisalabad<br>
-                        <i class="bi bi-envelope-fill"></i> support@hostelhub.com<br>
-                        <i class="bi bi-telephone-fill"></i> +92 300 1234567
-                    </p>
-                </div>
+<!-- 1. COMPLAINT MODAL -->
+<div class="modal fade" id="complaintModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="process_complaint.php" method="POST" class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-tools"></i> Report Issue</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <hr class="border-secondary">
-            <div class="text-center small text-secondary">
-                &copy; <?php echo date('Y'); ?> HostelHub Faisalabad. All Rights Reserved.
+            <div class="modal-body p-4">
+                <input type="hidden" name="hostel_id" id="comp_hid">
+                <label class="fw-bold mb-2">What's the problem?</label>
+                <select name="issue" class="form-select mb-3">
+                    <option>Electricity Issue</option>
+                    <option>WiFi Not Working</option>
+                    <option>Plumbing / Water</option>
+                    <option>Cleanliness</option>
+                    <option>Other</option>
+                </select>
+                <label class="fw-bold mb-2">Description</label>
+                <textarea name="desc" class="form-control" rows="3" placeholder="Describe the issue in detail..." required></textarea>
             </div>
-        </div>
-    </footer>
-    <!-- FOOTER END -->
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-danger w-100">Submit Report</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Animation Script -->
-    <script>
-        window.addEventListener("load", function () {
-            var loader = document.getElementById("preloader");
-            loader.style.opacity = "0"; 
-            setTimeout(function(){ 
-                loader.style.display = "none"; 
-            }, 500);
-        });
-    </script>
+<!-- 2. PAYMENT UPLOAD MODAL -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="upload_payment.php" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-gold text-white" style="background: var(--gold);">
+                <h5 class="modal-title fw-bold"><i class="bi bi-credit-card-2-front-fill"></i> Upload Payment Proof</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="alert alert-light border mb-3">
+                    <small class="text-muted d-block mb-1">Please transfer rent to Owner's Account and upload the screenshot here.</small>
+                    <strong>0300-1234567 (HostelHub Admin)</strong>
+                </div>
+                <input type="hidden" name="booking_id" id="pay_bid">
+                <label class="fw-bold mb-2 d-block text-start">Upload Screenshot:</label>
+                <input type="file" name="proof" class="form-control" required accept="image/*">
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-gold text-white w-100">Submit Proof</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openComplaint(hid) {
+        document.getElementById('comp_hid').value = hid;
+        var modal = new bootstrap.Modal(document.getElementById('complaintModal'));
+        modal.show();
+    }
+
+    function openUploadModal(bid) {
+        document.getElementById('pay_bid').value = bid;
+        var modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        modal.show();
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<?php include 'footer.php'; ?>
 </body>
 </html>

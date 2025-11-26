@@ -1,177 +1,176 @@
 <?php
-include 'config.php';
+include 'db.php';
+include 'header_sidebar.php';
+
+// Security: Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php"); 
-    exit();
+    echo "<script>window.location='login.php';</script>"; exit();
 }
 
-$msg = "";
 $uid = $_SESSION['user_id'];
+$msg = "";
+$msg_type = "";
 
-// Handle Profile Update
+// --- HANDLE FORM SUBMISSION ---
 if (isset($_POST['update_profile'])) {
-    // Security: Use Real Escape String
-    $name = $conn->real_escape_string($_POST['name']);
-    $phone = $conn->real_escape_string($_POST['phone']);
+    $name = htmlspecialchars($_POST['name']);
+    $phone = htmlspecialchars($_POST['phone']);
+    $about = htmlspecialchars($_POST['about']);
     
-    // Update Name/Phone
-    $sql = "UPDATE users SET name='$name', phone='$phone' WHERE id='$uid'";
-    $conn->query($sql);
+    // Update Text Info
+    $stmt = $conn->prepare("UPDATE users SET name=?, phone=?, about=? WHERE id=?");
+    $stmt->bind_param("sssi", $name, $phone, $about, $uid);
     
-    // Update Password if provided
-    if (!empty($_POST['password'])) {
-        $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
-        $conn->query("UPDATE users SET password='$pass' WHERE id='$uid'");
+    if ($stmt->execute()) {
+        $_SESSION['name'] = $name; // Update session name immediately
+        $msg = "Profile updated successfully!";
+        $msg_type = "success";
+        
+        // 1. Handle Profile Picture Upload
+        if (!empty($_FILES['profile_pic']['name'])) {
+            $img_name = time() . "_" . basename($_FILES['profile_pic']['name']);
+            $target = "uploads/" . $img_name;
+            
+            if (move_uploaded_file($_FILES['profile_pic']['tmp_name'], $target)) {
+                $conn->query("UPDATE users SET profile_pic='$img_name' WHERE id=$uid");
+            }
+        }
+
+        // 2. Handle CNIC Upload (Identity Verification)
+        if (!empty($_FILES['cnic_front']['name'])) {
+            $cnic_img = time() . "_cnic_" . basename($_FILES['cnic_front']['name']);
+            $target_cnic = "uploads/" . $cnic_img;
+
+            if (move_uploaded_file($_FILES['cnic_front']['tmp_name'], $target_cnic)) {
+                $conn->query("UPDATE users SET cnic_front='$cnic_img' WHERE id=$uid");
+            }
+        }
+
+    } else {
+        $msg = "Error updating profile.";
+        $msg_type = "danger";
     }
-
-    // Update Session Name immediately
-    $_SESSION['name'] = $name;
-
-    $msg = "<div class='alert alert-success shadow-sm border-0'><i class='bi bi-check-circle-fill'></i> Profile Updated Successfully!</div>";
 }
 
-// Fetch User Data
-$user = $conn->query("SELECT * FROM users WHERE id='$uid'")->fetch_assoc();
+// --- FETCH USER DATA ---
+$user = $conn->query("SELECT * FROM users WHERE id=$uid")->fetch_assoc();
+$pic = !empty($user['profile_pic']) ? "uploads/".$user['profile_pic'] : "https://via.placeholder.com/150";
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <!-- CRITICAL FOR MOBILE RESPONSIVENESS -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <title>My Profile - HostelHub</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    
-    <!-- PRELOADER START -->
-    <div id="preloader">
-        <div class="spinner"></div>
-    </div>
-    <!-- PRELOADER END -->
+<div class="content-wrapper">
+    <div class="container" style="max-width: 900px; min-height: 80vh;">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0" style="font-family: 'Cinzel';">My Profile</h2>
+            <?php if($user['role'] == 'owner'): ?>
+                <a href="owner_bookings.php" class="btn btn-outline-dark btn-sm">Back to Dashboard</a>
+            <?php else: ?>
+                <a href="index.php" class="btn btn-outline-dark btn-sm">Back to Home</a>
+            <?php endif; ?>
+        </div>
 
-    <?php include 'navbar.php'; ?>
+        <?php if($msg): ?>
+            <div class="alert alert-<?php echo $msg_type; ?>"><?php echo $msg; ?></div>
+        <?php endif; ?>
 
-    <div class="container mt-5 mb-5">
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-8 col-lg-6">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="row">
                 
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-primary text-white p-4">
-                        <h4 class="mb-0 fw-bold"><i class="bi bi-person-gear"></i> Edit Profile</h4>
-                        <p class="mb-0 small opacity-75">Update your personal details</p>
-                    </div>
-                    
-                    <div class="card-body p-4">
-                        <?php echo $msg; ?>
+                <!-- LEFT COL: Image & Role -->
+                <div class="col-md-4 text-center mb-4">
+                    <div class="card border-0 shadow-sm p-4 h-100 d-flex flex-column align-items-center justify-content-center">
                         
-                        <form method="POST">
-                            <!-- Full Name -->
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-uppercase text-muted">Full Name</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-person"></i></span>
-                                    <input type="text" name="name" class="form-control bg-light border-start-0" value="<?php echo htmlspecialchars($user['name']); ?>" required>
-                                </div>
+                        <div class="position-relative">
+                            <img src="<?php echo $pic; ?>" class="rounded-circle shadow-sm" 
+                                 style="width: 150px; height: 150px; object-fit: cover; border: 4px solid var(--gold);">
+                            
+                            <!-- Hidden File Input Trigger -->
+                            <label for="picInput" class="position-absolute bottom-0 end-0 bg-dark text-white rounded-circle p-2 shadow cursor-pointer" 
+                                   style="cursor: pointer;" title="Change Photo">
+                                <i class="bi bi-camera-fill"></i>
+                            </label>
+                            <input type="file" name="profile_pic" id="picInput" class="d-none" accept="image/*" onchange="previewImage(this)">
+                        </div>
+
+                        <h4 class="mt-3 fw-bold"><?php echo $user['name']; ?></h4>
+                        <span class="badge bg-gold text-white px-3 py-2 rounded-pill" style="background: var(--gold);">
+                            <?php echo ucfirst($user['role']); ?>
+                        </span>
+                        
+                        <p class="text-muted small mt-3">Member since <?php echo date('M Y', strtotime($user['created_at'])); ?></p>
+                    </div>
+                </div>
+
+                <!-- RIGHT COL: Edit Details -->
+                <div class="col-md-8">
+                    <div class="card border-0 shadow-sm p-4">
+                        <h5 class="fw-bold mb-3 text-primary">Personal Information</h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Full Name</label>
+                                <input type="text" name="name" class="form-control" value="<?php echo $user['name']; ?>" required>
                             </div>
                             
-                            <!-- Email (Read Only) -->
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-uppercase text-muted">Email Address</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-envelope"></i></span>
-                                    <input type="text" class="form-control bg-light border-start-0 text-muted" value="<?php echo htmlspecialchars($user['email']); ?>" disabled style="cursor: not-allowed;">
-                                </div>
-                                <div class="form-text small"><i class="bi bi-lock"></i> Email cannot be changed.</div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Email (Cannot be changed)</label>
+                                <input type="text" class="form-control bg-light" value="<?php echo $user['email']; ?>" readonly>
                             </div>
-                            
-                            <!-- Phone -->
-                            <div class="mb-4">
-                                <label class="form-label fw-bold small text-uppercase text-muted">Phone Number</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-telephone"></i></span>
-                                    <input type="text" name="phone" class="form-control bg-light border-start-0" value="<?php echo htmlspecialchars($user['phone']); ?>" placeholder="0300-1234567">
-                                </div>
+
+                            <div class="col-12">
+                                <label class="form-label small text-muted">Phone Number</label>
+                                <input type="text" name="phone" class="form-control" placeholder="+92 300 1234567" value="<?php echo $user['phone']; ?>">
                             </div>
-                            
-                            <hr class="my-4 opacity-25">
-                            
-                            <!-- Password -->
-                            <div class="mb-4">
-                                <label class="form-label fw-bold text-danger small text-uppercase">Change Password</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-key"></i></span>
-                                    <input type="password" name="password" class="form-control bg-light border-start-0" placeholder="Leave blank to keep current password">
-                                </div>
+
+                            <div class="col-12">
+                                <label class="form-label small text-muted">About Me / Bio</label>
+                                <textarea name="about" class="form-control" rows="4" placeholder="Tell us a little about yourself..."><?php echo $user['about']; ?></textarea>
                             </div>
-                            
-                            <div class="d-grid">
-                                <button type="submit" name="update_profile" class="btn btn-success btn-lg fw-bold shadow-sm">
-                                    Save Changes
-                                </button>
+                        </div>
+
+                        <!-- Feature 5: ID Verification -->
+                        <hr class="my-4">
+                        <h5 class="fw-bold text-primary">Identity Verification (Get Blue Tick)</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="small text-muted">Upload CNIC Front Photo</label>
+                                <input type="file" name="cnic_front" class="form-control">
+                                <?php if(isset($user['is_id_verified']) && $user['is_id_verified']): ?>
+                                    <span class="text-success small mt-2 d-block"><i class="bi bi-check-circle-fill"></i> Verified ID</span>
+                                <?php else: ?>
+                                    <span class="text-warning small mt-2 d-block"><i class="bi bi-hourglass"></i> Not Verified / Pending</span>
+                                <?php endif; ?>
                             </div>
-                        </form>
+                        </div>
+
+                        <hr class="my-4">
+                        
+                        <div class="text-end">
+                            <button type="submit" name="update_profile" class="btn btn-gold px-5 py-2 fw-bold shadow-sm">
+                                Save Changes
+                            </button>
+                        </div>
                     </div>
                 </div>
 
             </div>
-        </div>
+        </form>
     </div>
+</div>
 
-    <!-- FOOTER START -->
-    <footer class="bg-dark text-white mt-5 pt-5 pb-3">
-        <div class="container">
-            <div class="row text-center text-md-start">
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning fw-bold">HostelHub 🇵🇰</h5>
-                    <p class="small text-secondary">
-                        The easiest way for students in Faisalabad to find reliable, affordable, and safe hostel accommodation.
-                    </p>
-                </div>
-                
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning">Quick Links</h5>
-                    <ul class="list-unstyled">
-                        <li><a href="index.php" class="text-decoration-none text-secondary">Home Search</a></li>
-                        <li><a href="login.php" class="text-decoration-none text-secondary">Login / Register</a></li>
-                        <li><a href="#" class="text-decoration-none text-secondary">Terms of Service</a></li>
-                    </ul>
-                </div>
-                
-                <div class="col-md-4 mb-4">
-                    <h5 class="text-warning">Contact Us</h5>
-                    <p class="small text-secondary">
-                        <i class="bi bi-geo-alt-fill"></i> D-Ground, Faisalabad<br>
-                        <i class="bi bi-envelope-fill"></i> support@hostelhub.com<br>
-                        <i class="bi bi-telephone-fill"></i> +92 300 1234567
-                    </p>
-                </div>
-            </div>
-            <hr class="border-secondary">
-            <div class="text-center small text-secondary">
-                &copy; <?php echo date('Y'); ?> HostelHub Faisalabad. All Rights Reserved.
-            </div>
-        </div>
-    </footer>
-    <!-- FOOTER END -->
+<script>
+// Simple Image Preview Script
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            document.querySelector('img.rounded-circle').src = e.target.result;
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- ANIMATION SCRIPT -->
-    <script>
-        window.addEventListener("load", function () {
-            var loader = document.getElementById("preloader");
-            if(loader) {
-                loader.style.opacity = "0"; 
-                setTimeout(function(){ 
-                    loader.style.display = "none"; 
-                }, 500);
-            }
-        });
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
