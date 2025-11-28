@@ -1,0 +1,56 @@
+<%- include('partials/header_sidebar') %>
+
+<style>
+    .chat-box { height: 65vh; overflow-y: auto; background: #f0f2f5; padding: 20px; border-radius: 15px; }
+    .msg { padding: 10px 15px; margin-bottom: 10px; border-radius: 15px; width: fit-content; max-width: 75%; }
+    .my-msg { background: #D4AF37; color: white; margin-left: auto; border-bottom-right-radius: 0; }
+    .other-msg { background: white; color: black; border-bottom-left-radius: 0; }
+    .sender-name { font-size: 10px; font-weight: bold; margin-bottom: 2px; display: block; color: #555; }
+</style>
+
+<div class="content-wrapper container" style="max-width: 800px;">
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-white py-3 d-flex align-items-center">
+            <a href="/community" class="btn btn-sm btn-light me-3"><i class="bi bi-arrow-left"></i></a>
+            <h5 class="fw-bold mb-0"><%= area %> Community</h5>
+        </div>
+        <div class="card-body p-0">
+            <div id="chatBox" class="chat-box"></div>
+        </div>
+        <div class="card-footer bg-white p-3">
+            <div class="input-group">
+                <input type="text" id="msgInput" class="form-control rounded-pill" placeholder="Message...">
+                <button class="btn btn-gold rounded-pill ms-2 px-4" onclick="sendMsg()"><i class="bi bi-send-fill"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const areaName = "<%= area %>";
+    function loadMessages() {
+        fetch('/api_community', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'fetch', area: areaName })
+        })
+        .then(res => res.text())
+        .then(html => { document.getElementById('chatBox').innerHTML = html; });
+    }
+
+    function sendMsg() {
+        let msg = document.getElementById('msgInput').value;
+        if(msg.trim() !== "") {
+            fetch('/api_community', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'send', area: areaName, message: msg })
+            }).then(() => {
+                document.getElementById('msgInput').value = '';
+                loadMessages();
+            });
+        }
+    }
+    setInterval(loadMessages, 2000);
+</script>
+<%- include('partials/footer') %>

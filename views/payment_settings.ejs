@@ -1,0 +1,69 @@
+<%- include('partials/header_sidebar') %>
+
+<div class="content-wrapper">
+    <div class="container" style="max-width: 800px;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0" style="font-family: 'Cinzel';">Payment Methods</h2>
+            <a href="/owner_dashboard" class="btn btn-outline-dark rounded-pill">Back</a>
+        </div>
+
+        <div class="card shadow-sm border-0 p-4">
+            <p class="text-muted">Enter the account details where you want to receive rent. These will be shown to students when they book.</p>
+            
+            <form action="/save_payment_settings" method="POST">
+                
+                <!-- JazzCash -->
+                <div class="bg-light p-3 rounded mb-3 border-start border-4 border-danger">
+                    <h5 class="fw-bold text-danger">JazzCash</h5>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="small fw-bold">Account Title</label>
+                            <input type="text" name="jc_name" class="form-control" value="<%= data.jazzcash_name || '' %>" placeholder="e.g. Ali Khan">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small fw-bold">Account Number</label>
+                            <input type="text" name="jc_no" class="form-control" value="<%= data.jazzcash_no || '' %>" placeholder="0300.......">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EasyPaisa -->
+                <div class="bg-light p-3 rounded mb-3 border-start border-4 border-success">
+                    <h5 class="fw-bold text-success">EasyPaisa</h5>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="small fw-bold">Account Title</label>
+                            <input type="text" name="ep_name" class="form-control" value="<%= data.easypaisa_name || '' %>" placeholder="e.g. Ali Khan">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small fw-bold">Account Number</label>
+                            <input type="text" name="ep_no" class="form-control" value="<%= data.easypaisa_no || '' %>" placeholder="0300.......">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bank -->
+                <div class="bg-light p-3 rounded mb-4 border-start border-4 border-primary">
+                    <h5 class="fw-bold text-primary">Bank Transfer</h5>
+                    <div class="mb-2">
+                        <label class="small fw-bold">Bank Name</label>
+                        <input type="text" name="bank_name" class="form-control" value="<%= data.bank_name || '' %>" placeholder="e.g. HBL, Meezan">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="small fw-bold">Account Title</label>
+                            <input type="text" name="bank_title" class="form-control" value="<%= data.bank_acc_title || '' %>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small fw-bold">IBAN / Account No</label>
+                            <input type="text" name="bank_iban" class="form-control" value="<%= data.bank_iban || '' %>">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-gold w-100 fw-bold py-3 shadow-sm">Save Payment Details</button>
+            </form>
+        </div>
+    </div>
+</div>
+<%- include('partials/footer') %>

@@ -1,0 +1,67 @@
+<%- include('partials/header_sidebar') %>
+
+<div class="content-wrapper">
+    <div class="container" style="max-width: 1000px; min-height: 80vh;">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-0" style="font-family: 'Cinzel'; color: #D4AF37;">Weekly Mess Menu</h2>
+                <p class="text-muted small">Update the food schedule for your students</p>
+            </div>
+            <a href="/owner_dashboard" class="btn btn-outline-dark rounded-pill">Back to Dashboard</a>
+        </div>
+
+        <div class="card border-0 shadow-sm p-4">
+            <form action="/manage_mess" method="POST">
+                <input type="hidden" name="hostel_id" value="<%= hostel_id %>">
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle text-center">
+                        <thead class="bg-dark text-white">
+                            <tr>
+                                <th style="width: 15%;">Day</th>
+                                <th>Breakfast</th>
+                                <th>Lunch</th>
+                                <th>Dinner</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% 
+                            const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                            
+                            daysOfWeek.forEach(day => { 
+                                // Find if we already have data for this day
+                                let current = menu.find(m => m.day_name === day) || {};
+                            %>
+                                <tr>
+                                    <td class="fw-bold bg-light">
+                                        <%= day %>
+                                        <input type="hidden" name="day[]" value="<%= day %>">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="bkf[]" class="form-control border-0 bg-light text-center" 
+                                               placeholder="e.g. Paratha + Egg" value="<%= current.breakfast || '' %>">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="lun[]" class="form-control border-0 bg-light text-center" 
+                                               placeholder="e.g. Biryani" value="<%= current.lunch || '' %>">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="din[]" class="form-control border-0 bg-light text-center" 
+                                               placeholder="e.g. Chicken Karahi" value="<%= current.dinner || '' %>">
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="text-end mt-3">
+                    <button type="submit" class="btn btn-gold px-5 py-2 fw-bold shadow-sm">Save Menu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,28 @@
+<%- include('partials/header_sidebar') %>
+
+<div class="content-wrapper">
+    <div class="container" style="max-width: 800px; min-height: 80vh;">
+        <h3 class="fw-bold mb-4" style="font-family: 'Cinzel';">Messages</h3>
+
+        <div class="list-group shadow-sm border-0">
+            <% if (chats.length > 0) { %>
+                <% chats.forEach(u => { %>
+                    <a href="/chat/<%= u.id %>" class="list-group-item list-group-item-action p-3 d-flex align-items-center">
+                        <img src="<%= u.profile_pic ? '/uploads/'+u.profile_pic : 'https://via.placeholder.com/50' %>" class="rounded-circle me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0 fw-bold"><%= u.name %></h6>
+                            <small class="text-muted"><%= u.role.toUpperCase() %></small>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </a>
+                <% }); %>
+            <% } else { %>
+                <div class="text-center py-5">
+                    <i class="bi bi-chat-square-text display-4 text-muted opacity-25"></i>
+                    <p class="text-muted mt-3">No conversations yet.</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+<%- include('partials/footer') %>

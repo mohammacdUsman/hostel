@@ -1,0 +1,188 @@
+<%- include('partials/header_sidebar') %>
+
+<div class="content-wrapper">
+    <div class="container-fluid" style="min-height: 80vh;">
+        
+        <!-- 1. HEADER & ACTION BUTTONS -->
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+            <div>
+                <h2 class="fw-bold mb-0" style="font-family: 'Cinzel';">Owner Dashboard</h2>
+                <p class="text-muted small mb-0">Manage your business overview</p>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <!-- Payment Button -->
+                <a href="/payment_settings" class="btn btn-outline-dark shadow-sm d-flex align-items-center gap-2">
+                    <i class="bi bi-wallet2"></i> <span class="d-none d-sm-inline">Payment Method</span>
+                </a>
+                <!-- Add Hostel Button -->
+                <a href="/add_hostel" class="btn btn-gold shadow-sm d-flex align-items-center gap-2">
+                    <i class="bi bi-plus-lg"></i> <span>Add Hostel</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- 2. STATS CARDS -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-6">
+                <div class="card border-0 shadow-sm p-3 text-center bg-white h-100">
+                    <h3 class="fw-bold text-primary mb-0"><%= stats.totalViews || 0 %></h3>
+                    <small class="text-muted">Total Views</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card border-0 shadow-sm p-3 text-center bg-white h-100">
+                    <h3 class="fw-bold text-warning mb-0"><%= stats.pending || 0 %></h3>
+                    <small class="text-muted">Pending</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card border-0 shadow-sm p-3 text-center bg-white h-100">
+                    <h3 class="fw-bold text-success mb-0"><%= stats.approved || 0 %></h3>
+                    <small class="text-muted">Approved</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card border-0 shadow-sm p-3 text-center bg-white h-100">
+                    <h3 class="fw-bold text-danger mb-0"><%= stats.rejected || 0 %></h3>
+                    <small class="text-muted">Rejected</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. ANALYTICS GRAPH -->
+        <div class="card shadow-sm border-0 p-4 mb-5">
+            <h5 class="fw-bold"><i class="bi bi-graph-up text-gold" style="color: #D4AF37;"></i> Booking Performance</h5>
+            <div style="height: 300px; width: 100%;">
+                <canvas id="bookingChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 4. BOOKING MANAGEMENT TABLE -->
+        <h5 class="fw-bold text-dark mb-3 border-start border-4 border-primary ps-3">Booking & Payment Requests</h5>
+        <div class="card shadow-sm border-0 mb-5">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Student</th>
+                            <th>Hostel</th>
+                            <th>Status</th>
+                            <th>Payment Proof</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (bookings.length > 0) { %>
+                            <% bookings.forEach(row => { %>
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold"><%= row.student_name %></div>
+                                        <small class="text-muted"><%= row.email %></small>
+                                    </td>
+                                    <td class="text-primary fw-bold"><%= row.hostel_name %></td>
+                                    <td>
+                                        <% if(row.status === 'Approved') { %> 
+                                            <span class="badge bg-success">Approved</span>
+                                        <% } else if (row.status === 'Rejected') { %> 
+                                            <span class="badge bg-danger">Rejected</span>
+                                        <% } else { %> 
+                                            <span class="badge bg-warning text-dark">Pending</span> 
+                                        <% } %>
+                                    </td>
+                                    
+                                    <!-- Payment Proof -->
+                                    <td>
+                                        <% if (row.payment_proof) { %>
+                                            <a href="/uploads/<%= row.payment_proof %>" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-image"></i> View Proof
+                                            </a>
+                                        <% } else { %>
+                                            <span class="text-muted small">Not Uploaded</span>
+                                        <% } %>
+                                    </td>
+
+                                    <!-- Action Buttons -->
+                                    <td>
+                                        <% if (row.status === 'Pending') { %>
+                                            <a href="/update_booking/<%= row.booking_id %>/Approved" class="btn btn-sm btn-success" title="Approve"><i class="bi bi-check-lg"></i></a>
+                                            <a href="/update_booking/<%= row.booking_id %>/Rejected" class="btn btn-sm btn-danger" title="Reject"><i class="bi bi-x-lg"></i></a>
+                                        <% } else { %>
+                                            <span class="text-muted small"><i class="bi bi-check-all"></i> Done</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr><td colspan="5" class="text-center py-4 text-muted">No bookings received yet.</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 5. MY PROPERTIES LIST -->
+        <h5 class="fw-bold text-dark mb-3 border-start border-4 border-warning ps-3">My Properties</h5>
+        <div class="row g-3 mb-5">
+            <% if (my_hostels.length > 0) { %>
+                <% my_hostels.forEach(h => { %>
+                    <div class="col-md-4 col-lg-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <img src="<%= h.image ? '/uploads/'+h.image : 'https://via.placeholder.com/300x200' %>" class="card-img-top" style="height: 150px; object-fit: cover;">
+                            <div class="card-body p-3">
+                                <h6 class="fw-bold text-truncate mb-1"><%= h.name %></h6>
+                                <small class="text-muted d-block mb-3"><i class="bi bi-geo-alt"></i> <%= h.area %></small>
+                                
+                                <div class="d-grid gap-2">
+                                    <a href="/edit_hostel/<%= h.id %>" class="btn btn-sm btn-outline-dark">Edit Details</a>
+                                    <div class="d-flex gap-2">
+                                        <a href="/manage_mess/<%= h.id %>" class="btn btn-sm btn-light flex-fill border text-success" title="Mess Menu"><i class="bi bi-egg-fried"></i> Menu</a>
+                                        <a href="/manage_hostel/<%= h.id %>" class="btn btn-sm btn-light flex-fill border text-danger" title="Announcement"><i class="bi bi-megaphone"></i> Alert</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            <% } else { %>
+                <div class="col-12">
+                    <div class="alert alert-light border text-center py-5">
+                        <i class="bi bi-house-add display-4 text-muted mb-3 d-block"></i>
+                        <h5 class="text-muted">You haven't listed any hostels yet.</h5>
+                        <a href="/add_hostel" class="btn btn-gold mt-2">List Your First Hostel</a>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+
+    </div>
+</div>
+
+<!-- GRAPH SCRIPT -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Check if chart data exists (passed from app.js)
+    const monthsData = <%- JSON.stringify(locals.months || []) %>;
+    const countsData = <%- JSON.stringify(locals.counts || []) %>;
+
+    if (document.getElementById('bookingChart')) {
+        const ctx = document.getElementById('bookingChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: monthsData.length ? monthsData : ['No Data'],
+                datasets: [{
+                    label: 'Bookings',
+                    data: countsData.length ? countsData : [0],
+                    borderColor: '#D4AF37',
+                    backgroundColor: 'rgba(212, 175, 55, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+</script>
+
+<%- include('partials/footer') %>

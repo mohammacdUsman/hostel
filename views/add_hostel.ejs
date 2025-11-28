@@ -1,0 +1,64 @@
+<%- include('partials/header_sidebar') %>
+
+<div class="content-wrapper">
+    <div class="container" style="max-width: 800px;">
+        <h2 class="fw-bold mb-4" style="font-family: 'Cinzel';">Add New Hostel</h2>
+        
+        <!-- FORM -->
+        <form action="/add_hostel" method="POST" enctype="multipart/form-data" class="card p-5 shadow-sm border-0">
+            
+            <div class="mb-3">
+                <label class="fw-bold">Hostel Name</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Category</label>
+                    <select name="category" class="form-select">
+                        <option>Boys</option><option>Girls</option><option>Family</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Area / City</label>
+                    <input type="text" name="area" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-bold">Price (PKR)</label>
+                <input type="number" name="price" class="form-control" required>
+            </div>
+
+            <!-- FACILITIES -->
+            <div class="mb-3 p-3 bg-light rounded">
+                <label class="fw-bold mb-2">Facilities:</label><br>
+                <div class="btn-group flex-wrap gap-2">
+                    <% const facs = ['WiFi','Mess','Laundry','Generator','CCTV','Parking']; %>
+                    <% facs.forEach(f => { %>
+                        <input type="checkbox" class="btn-check" name="facilities" value="<%= f %>" id="add_<%= f %>">
+                        <label class="btn btn-outline-dark rounded-pill px-3" for="add_<%= f %>"><%= f %></label>
+                    <% }); %>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-bold">Description</label>
+                <textarea name="desc" class="form-control" rows="4"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-bold text-danger">Google Maps Embed Code</label>
+                <textarea name="map_embed" class="form-control" rows="3" placeholder='Paste <iframe...> code here'></textarea>
+            </div>
+
+            <div class="mb-4 border p-3 rounded">
+                <label class="fw-bold text-primary">Upload Photos</label>
+                <input type="file" name="images" class="form-control mt-2" multiple required>
+            </div>
+
+            <button type="submit" class="btn btn-gold w-100 py-3 fw-bold">Save Hostel</button>
+        </form>
+    </div>
+</div>
+<%- include('partials/footer') %>

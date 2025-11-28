@@ -1,0 +1,79 @@
+<%- include('partials/header_sidebar') %>
+
+<style>
+    .chat-box { height: 65vh; overflow-y: auto; background: #e5ddd5; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .msg { padding: 10px 15px; border-radius: 15px; max-width: 70%; width: fit-content; font-size: 15px; word-wrap: break-word; }
+    .sent { background: #dcf8c6; align-self: flex-end; border-bottom-right-radius: 0; }
+    .received { background: #fff; align-self: flex-start; border-bottom-left-radius: 0; }
+</style>
+
+<div class="content-wrapper">
+    <div class="container" style="max-width: 900px;">
+        <div class="card shadow-lg border-0 overflow-hidden">
+            
+            <!-- Header -->
+            <div class="card-header bg-success text-white py-3 d-flex align-items-center">
+                <a href="/chat_list" class="text-white me-3"><i class="bi bi-arrow-left fs-4"></i></a>
+                <img src="<%= receiver.profile_pic ? '/uploads/'+receiver.profile_pic : 'https://via.placeholder.com/40' %>" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                <h5 class="mb-0 fw-bold"><%= receiver.name %></h5>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="card-body p-0">
+                <div id="chatBox" class="chat-box">
+                    <div class="text-center mt-5"><div class="spinner-border text-secondary"></div></div>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="card-footer bg-light p-3">
+                <div class="input-group">
+                    <input type="text" id="msgInput" class="form-control border-0 rounded-pill px-4" placeholder="Type a message...">
+                    <button class="btn btn-success rounded-circle ms-2" style="width: 45px; height: 45px;" onclick="sendMsg()"><i class="bi bi-send-fill"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const receiverId = "<%= receiver.id %>";
+    
+    function loadMessages() {
+        fetch('/api_chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'fetch', receiver_id: receiverId })
+        })
+        .then(res => res.text())
+        .then(html => { 
+            document.getElementById('chatBox').innerHTML = html; 
+        });
+    }
+
+    function sendMsg() {
+        let msg = document.getElementById('msgInput').value;
+        if(msg.trim() !== "") {
+            fetch('/api_chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'send', receiver_id: receiverId, message: msg })
+            }).then(() => {
+                document.getElementById('msgInput').value = '';
+                loadMessages();
+                setTimeout(() => { 
+                    var box = document.getElementById("chatBox");
+                    box.scrollTop = box.scrollHeight; 
+                }, 300);
+            });
+        }
+    }
+
+    setInterval(loadMessages, 2000); // Refresh every 2s
+    
+    document.getElementById("msgInput").addEventListener("keyup", function(e) {
+        if (e.keyCode === 13) sendMsg();
+    });
+</script>
+
+<%- include('partials/footer') %>

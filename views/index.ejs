@@ -1,0 +1,148 @@
+<%- include('partials/header_sidebar') %>
+
+<style>
+    /* Filters Styling */
+    .filter-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+    .form-label { font-weight: 600; font-size: 14px; color: #555; }
+    
+    /* Card Styling */
+    .hostel-card { transition: transform 0.3s; border: none; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+    .hostel-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(212, 175, 55, 0.2); }
+    
+    .compare-checkbox { position: absolute; top: 10px; left: 10px; z-index: 10; width: 20px; height: 20px; accent-color: #D4AF37; }
+    .wishlist-btn { position: absolute; top: 10px; right: 10px; z-index: 10; background: white; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: 0.3s; }
+    .wishlist-btn:hover { transform: scale(1.1); }
+</style>
+
+<!-- HERO SECTION -->
+<div style="background: url('https://images.unsplash.com/photo-1555854877-bab0e564b8d5?q=80&w=1920') center/cover; height: 50vh; position: relative; margin-top: -80px; display: flex; align-items: center; justify-content: center;">
+    <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6);"></div>
+    <div class="container text-center position-relative text-white">
+        <h1 style="font-family: 'Cinzel'; font-size: 3.5rem;">Hostel<span style="color: #D4AF37;">Hub</span></h1>
+        <p class="lead opacity-75">Find your perfect space with advanced filters.</p>
+    </div>
+</div>
+
+<div class="content-wrapper container my-5">
+    <div class="row">
+        
+        <!-- LEFT: FILTER SIDEBAR -->
+        <div class="col-lg-3 mb-4">
+            <div class="filter-box sticky-top" style="top: 100px;">
+                <h5 class="fw-bold mb-4" style="font-family: 'Cinzel';"><i class="bi bi-sliders"></i> Filters</h5>
+                <form action="/" method="GET">
+                    
+                    <!-- Area Search -->
+                    <div class="mb-3">
+                        <label class="form-label">Location</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-geo-alt text-muted"></i></span>
+                            <input type="text" name="area" class="form-control bg-light border-start-0" placeholder="e.g. Kohinoor" value="<%= query.area %>">
+                        </div>
+                    </div>
+
+                    <!-- Category -->
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <select name="category" class="form-select bg-light">
+                            <option value="">All Categories</option>
+                            <option value="Boys" <%= query.category == 'Boys' ? 'selected' : '' %>>Boys Hostel</option>
+                            <option value="Girls" <%= query.category == 'Girls' ? 'selected' : '' %>>Girls Hostel</option>
+                            <option value="Family" <%= query.category == 'Family' ? 'selected' : '' %>>Family Flat</option>
+                        </select>
+                    </div>
+
+                    <!-- Budget -->
+                    <div class="mb-4">
+                        <label class="form-label">Max Budget (PKR)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0">Rs.</span>
+                            <input type="number" name="price" class="form-control bg-light border-start-0" placeholder="20000" value="<%= query.price %>">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-dark w-100 py-2" style="border: 1px solid #D4AF37;">Apply Filters</button>
+                    <a href="/" class="btn btn-link btn-sm w-100 mt-2 text-muted text-decoration-none">Reset Filters</a>
+                </form>
+            </div>
+        </div>
+
+        <!-- RIGHT: LISTINGS -->
+        <div class="col-lg-9">
+            <h4 class="fw-bold mb-4" style="font-family: 'Cinzel';">Available Residences</h4>
+            
+            <div class="row g-4">
+                <% if (hostels.length > 0) { %>
+                    <% hostels.forEach(function(hostel) { %>
+                        <div class="col-md-6 col-xl-4">
+                            <div class="card hostel-card h-100">
+                                <div class="position-relative">
+                                    <img src="<%= hostel.image ? '/uploads/' + hostel.image : 'https://via.placeholder.com/400x300' %>" 
+                                         class="card-img-top" style="height: 200px; object-fit: cover;">
+                                    
+                                    <input type="checkbox" class="compare-checkbox" onclick="addToCompare(<%= hostel.id %>)" title="Compare">
+                                    <button class="wishlist-btn shadow-sm" onclick="toggleWishlist(this, <%= hostel.id %>)">
+                                        <i class="bi bi-heart-fill text-secondary"></i>
+                                    </button>
+                                    <span class="badge bg-dark position-absolute bottom-0 start-0 m-2"><%= hostel.category %></span>
+                                </div>
+
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h5 class="fw-bold mb-0 text-truncate"><%= hostel.name %></h5>
+                                        <% if(hostel.is_verified) { %> <i class="bi bi-patch-check-fill text-primary" title="Verified"></i> <% } %>
+                                    </div>
+                                    <p class="text-muted small mb-3"><i class="bi bi-geo-alt-fill text-warning"></i> <%= hostel.area %></p>
+                                    
+                                    <div class="d-flex justify-content-between align-items-center border-top pt-3">
+                                        <h5 class="mb-0 text-success fw-bold">Rs. <%= hostel.price.toLocaleString() %></h5>
+                                        <a href="/details/<%= hostel.id %>" class="btn btn-sm btn-outline-dark rounded-pill px-4">View</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-search display-1 text-muted opacity-25"></i>
+                        <h4 class="text-muted mt-3">No hostels found matching your filters.</h4>
+                        <a href="/" class="btn btn-gold mt-2">Clear Filters</a>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Compare Button (Hidden) -->
+<div id="compareBtn" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 9999; display: none;">
+    <button onclick="goToCompare()" class="btn btn-dark shadow-lg rounded-pill px-4 py-2 border-gold">
+        <i class="bi bi-arrow-left-right text-warning me-2"></i> Compare (<span id="count">0</span>/2)
+    </button>
+</div>
+
+<script>
+    // Comparison & Wishlist Logic
+    let selected = [];
+    function addToCompare(id) {
+        if(selected.includes(id)) selected = selected.filter(i => i !== id);
+        else { if(selected.length < 2) selected.push(id); else alert("Select only 2 hostels."); }
+        document.getElementById('count').innerText = selected.length;
+        document.getElementById('compareBtn').style.display = selected.length > 0 ? 'block' : 'none';
+    }
+    function goToCompare() {
+        if(selected.length === 2) window.location = `/compare?h1=${selected[0]}&h2=${selected[1]}`;
+        else alert("Select 2 hostels.");
+    }
+    function toggleWishlist(btn, id) {
+        fetch('/toggle_wishlist', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({hostel_id: id}) })
+        .then(res => res.text()).then(resp => {
+            if(resp === 'login_required') window.location = '/login';
+            else if(resp === 'added') btn.querySelector('i').className = 'bi bi-heart-fill text-danger';
+            else btn.querySelector('i').className = 'bi bi-heart-fill text-secondary';
+        });
+    }
+</script>
+
+<%- include('partials/footer') %>

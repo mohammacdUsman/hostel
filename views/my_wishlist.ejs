@@ -1,0 +1,47 @@
+<%- include('partials/header_sidebar') %>
+
+<div class="content-wrapper">
+    <div class="container" style="min-height: 80vh;">
+        <div class="d-flex align-items-center mb-5 mt-3">
+            <i class="bi bi-heart-fill fs-1 me-3 text-danger"></i>
+            <h2 class="fw-bold mb-0" style="font-family: 'Cinzel';">My Wishlist</h2>
+        </div>
+
+        <div class="row g-4">
+            <% if (hostels.length > 0) { %>
+                <% hostels.forEach(row => { %>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="position-relative">
+                                <img src="<%= row.image ? '/uploads/'+row.image : 'https://via.placeholder.com/400' %>" class="card-img-top" style="height: 200px; object-fit: cover;">
+                                <button class="btn btn-light position-absolute top-0 end-0 m-3 text-danger rounded-circle" onclick="toggleWishlist(this, <%= row.id %>)">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <h5><%= row.name %></h5>
+                                <a href="/details/<%= row.id %>" class="btn btn-outline-dark w-100 mt-2">View</a>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            <% } else { %>
+                <div class="col-12 text-center py-5">
+                    <h4 class="text-muted">Wishlist Empty</h4>
+                    <a href="/" class="btn btn-gold mt-2">Browse Hostels</a>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleWishlist(btn, id) {
+        fetch('/toggle_wishlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hostel_id: id })
+        }).then(() => window.location.reload());
+    }
+</script>
+<%- include('partials/footer') %>

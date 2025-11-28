@@ -1,0 +1,159 @@
+<%- include('partials/header_sidebar') %>
+
+<div class="content-wrapper">
+    <div class="container mt-4" style="min-height: 60vh;">
+        <h2 class="fw-bold mb-4" style="font-family: 'Cinzel';">My Bookings & Payments</h2>
+
+        <div class="card shadow-sm border-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="ps-4">Hostel Details</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if(bookings.length > 0) { %>
+                            <% bookings.forEach(row => { %>
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <img src="<%= row.image ? '/uploads/'+row.image : 'https://via.placeholder.com/50' %>" class="rounded me-3" style="width:50px; height:50px; object-fit:cover;">
+                                            <div>
+                                                <div class="fw-bold"><%= row.name %></div>
+                                                <small class="text-muted">Rs. <%= row.price.toLocaleString() %></small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><%= new Date(row.created_at).toLocaleDateString() %></td>
+                                    <td>
+                                        <span class="badge <%= row.status === 'Approved' ? 'bg-success' : (row.status === 'Rejected' ? 'bg-danger' : 'bg-warning text-dark') %>">
+                                            <%= row.status %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <% if (row.status === 'Approved') { %>
+                                            <% if (row.payment_proof) { %>
+                                                <span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> Proof Sent</span>
+                                                <a href="/receipt/<%= row.id %>" target="_blank" class="btn btn-sm btn-outline-dark ms-2"><i class="bi bi-receipt"></i> Receipt</a>
+                                            <% } else { %>
+                                                <!-- 
+                                                   FIXED BUTTON: 
+                                                   1. position: relative & z-index: 100 (Forces it above overlay)
+                                                   2. onclick: Calls a specific JS function
+                                                -->
+                                                <button type="button" 
+        class="btn btn-sm btn-gold shadow-sm text-dark fw-bold" 
+        style="background: #D4AF37;" 
+        
+        data-id="<%= row.id %>"
+        data-jcname="<%= row.jazzcash_name %>"
+        data-jcno="<%= row.jazzcash_no %>"
+        data-epname="<%= row.easypaisa_name %>"
+        data-epno="<%= row.easypaisa_no %>"
+        data-bankname="<%= row.bank_name %>"
+        data-banktitle="<%= row.bank_acc_title %>"
+        data-bankiban="<%= row.bank_iban %>"
+        
+        onclick="showPaymentModal(this)">
+    <i class="bi bi-upload"></i> Pay / Upload
+</button>
+                                            <% } %>
+                                        <% } else { %>
+                                            <span class="text-muted small">-</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr><td colspan="4" class="text-center py-5">No bookings yet.</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PAYMENT UPLOAD MODAL -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="/upload_payment" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" style="color: #D4AF37;">Make Payment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                
+                <!-- DYNAMIC PAYMENT DETAILS SECTION -->
+                <div id="paymentDetailsBox" class="mb-4">
+                    <p class="text-muted small text-center">Loading payment details...</p>
+                </div>
+
+                <hr>
+
+                <div class="text-center">
+                    <small class="text-muted d-block mb-2 fw-bold">Step 2: Upload Screenshot</small>
+                    <input type="hidden" name="booking_id" id="modal_booking_id">
+                    <input type="file" name="proof" class="form-control" required accept="image/*">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-gold fw-bold">Submit Proof</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Script to Inject Data into Modal -->
+<script>
+    function showPaymentModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const jcName = btn.getAttribute('data-jcname');
+        const jcNo = btn.getAttribute('data-jcno');
+        const epName = btn.getAttribute('data-epname');
+        const epNo = btn.getAttribute('data-epno');
+        const bankName = btn.getAttribute('data-bankname');
+        const bankTitle = btn.getAttribute('data-banktitle');
+        const bankIban = btn.getAttribute('data-bankiban');
+
+        // Build HTML
+        let html = '<p class="small text-center mb-3">Send rent to <b>ONE</b> of these accounts:</p>';
+        
+        if(jcNo) html += `<div class="alert alert-danger py-2 mb-2"><i class="bi bi-phone"></i> <strong>JazzCash:</strong> ${jcNo} (${jcName})</div>`;
+        if(epNo) html += `<div class="alert alert-success py-2 mb-2"><i class="bi bi-phone"></i> <strong>EasyPaisa:</strong> ${epNo} (${epName})</div>`;
+        if(bankIban) html += `<div class="alert alert-primary py-2 mb-2"><i class="bi bi-bank"></i> <strong>${bankName}:</strong><br>${bankIban}<br><small>Title: ${bankTitle}</small></div>`;
+
+        if(!jcNo && !epNo && !bankIban) html = '<div class="alert alert-warning text-center">Owner has not provided payment details.<br>Please chat with them directly.</div>';
+
+        document.getElementById('paymentDetailsBox').innerHTML = html;
+        document.getElementById('modal_booking_id').value = id;
+
+        var modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        modal.show();
+    }
+</script>
+
+<!-- Explicitly Load Bootstrap JS Bundle here to ensure functionality -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    function forceOpenModal(bookingId) {
+        // 1. Debugging Log
+        console.log("Button Clicked for ID:", bookingId);
+
+        // 2. Set the ID in the hidden form field
+        document.getElementById('force_booking_id').value = bookingId;
+
+        // 3. Manually initialize and show the modal using Bootstrap API
+        var myModalEl = document.getElementById('forcePaymentModal');
+        var modal = new bootstrap.Modal(myModalEl);
+        modal.show();
+    }
+</script>
+
+<%- include('partials/footer') %>
